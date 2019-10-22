@@ -50,5 +50,4 @@ enum CONTROL_MODE {
 //  If an obstacle is closer than this distance (in centimeters), the car will try to evade it
 #define OBSTACLE_DISTANCE_THRESHOLD 10
 
-
 #endif

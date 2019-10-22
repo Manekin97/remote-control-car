@@ -18,6 +18,7 @@ Car::Car() {
 }
 
 void Car::move(CAR_ACTION action, byte speed) {
+  //  Turn on both motors and configure them to move forward
   digitalWrite(LEFT_MOTOR_IN_1, LOW);
   digitalWrite(LEFT_MOTOR_IN_2, HIGH);
   digitalWrite(RIGHT_MOTOR_IN_3, LOW);
@@ -25,32 +26,39 @@ void Car::move(CAR_ACTION action, byte speed) {
   
   switch (action) {
     case FORWARD:
+      //  Send PWM signal
       analogWrite(ENABLE_LEFT_MOTOR, speed);
       analogWrite(ENABLE_RIGHT_MOTOR, speed);
       break;
     case BACKWARD:
+      //  Turn on both motors and configure them to move backward
       digitalWrite(LEFT_MOTOR_IN_1, HIGH);
       digitalWrite(LEFT_MOTOR_IN_2, LOW);
       digitalWrite(RIGHT_MOTOR_IN_3, HIGH);
       digitalWrite(RIGHT_MOTOR_IN_4, LOW);
 
+      //  Send PWM signal
       analogWrite(ENABLE_LEFT_MOTOR, speed);
       analogWrite(ENABLE_RIGHT_MOTOR, speed);
       break;
     case LEFT:
+      //  Send PWM signal
       analogWrite(ENABLE_LEFT_MOTOR, 0);
       analogWrite(ENABLE_RIGHT_MOTOR, speed);
       break;
     case RIGHT:
+      //  Send PWM signal
       analogWrite(ENABLE_LEFT_MOTOR, speed);
       analogWrite(ENABLE_RIGHT_MOTOR, 0);
       break;
     case STOP:
+      //  Turn off both motors
       digitalWrite(LEFT_MOTOR_IN_1, LOW);
       digitalWrite(LEFT_MOTOR_IN_2, LOW);
       digitalWrite(RIGHT_MOTOR_IN_3, LOW);
       digitalWrite(RIGHT_MOTOR_IN_4, LOW);
 
+      //  Send PWM signal
       analogWrite(ENABLE_LEFT_MOTOR, 0);
       analogWrite(ENABLE_RIGHT_MOTOR, 0);
       break;
@@ -208,6 +216,7 @@ void Car::handleCommands(String string) {
     setControlMode(REMOTE);
   }
 
+  //  Send PWM signal
   analogWrite(ENABLE_LEFT_MOTOR, leftMotorSpeed);
   analogWrite(ENABLE_RIGHT_MOTOR, rightMotorSpeed);
 }

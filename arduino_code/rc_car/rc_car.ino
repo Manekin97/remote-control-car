@@ -20,16 +20,24 @@ void setup() {
 }
 
 void loop() {
+  //  If there's data being sent through serial connection
   if (ESP_serial.available() > 0) {
+    //  Read the character
     char character = ESP_serial.read();
 
+    //  Concatenate it to a string
     command += character;
+
+    //  If the character was a new line character,
+    //  handle the command and clear the string
     if (character == '\n') {
       car->handleCommands(command);
       command = "";
     }
   }
 
+  //  If the control mode is set to autonomous,
+  //  Tell the car to drive itself
   if (car->getControlMode() == AUTONOMOUS) {
     car->drive();
   }
