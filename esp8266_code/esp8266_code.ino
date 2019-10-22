@@ -2,42 +2,51 @@
 #include <WiFiUdp.h>
 #include <ArduinoJson.h>
 
+//  Access Point parameters
+#define UDP_PORT 4210
 const char* ACCESS_POINT_NAME = "ESP8266-ACCESS-POINT";
-
 IPAddress IP(192,168,1,1);
 IPAddress GATEWAY(192,168,1,1);
 IPAddress SUBNET(255,255,255,0);
 
 WiFiUDP Udp;
-unsigned int localUdpPort = 4210;
+
 const size_t jsonSize = JSON_OBJECT_SIZE(4) + 70;
 char incomingPacket[jsonSize];
 DynamicJsonDocument json(jsonSize);
 
 void setup() {
+  // Init serial connection
+  Serial.begin(9600);
+  Serial.println();
+  Serial.printf("Creating %s \n", ACCESS_POINT_NAME);
+  
+  //  Reset Wi-Fi mode
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
   delay(100);
-  
-  Serial.begin(9600);
-  Serial.println();
-  Serial.printf("Creating %s ", ACCESS_POINT_NAME);
-  
+
+  // Setup Access Point
   WiFi.mode(WIFI_AP);
   WiFi.softAPConfig(IP, GATEWAY, SUBNET);
-  boolean result = WiFi.softAP(ACCESS_POINT_NAME, "", 13, false, 1);
+  boolean result = WiFi.softAP(ACCESS_POINT_NAME, "");
   Serial.println(result ? "Access Point is ready" : "Setting up Access Point failed");
 
-  Udp.begin(localUdpPort);
-  Serial.printf("Access Point is ready at IP %s, UDP port %d\n", WiFi.softAPIP().toString().c_str(), localUdpPort);
+  //  Setup UDP
+  Udp.begin(UDP_PORT);
+  Serial.printf("Access Point is ready at IP %s, UDP port %d\n", WiFi.softAPIP().toString().c_str(), UDP_PORT);
 }
 
 void loop() {
+  //  Get the packet size
   int packetSize = Udp.parsePacket();
- 
+
+  // If there was a packet available
   if (packetSize) {
-    // receive incoming UDP packets
-    int len = Udp.read(incomingPacket, 255);
+    // Receive incoming UDP packet
+    int len = Udp.read(incomingPacket, jsonSize);
+
+    //  If the packet wasn't empty
     if (len > 0) {
       DeserializationError error = deserializeJson(json, incomingPacket);
   
