@@ -185,17 +185,16 @@ unsigned int Car::checkForObstacles(DIRECTION direction) {
   return distance;
 }
 
-void Car::handleCommands(String string) {
-  byte values[4];
+void Car::handleCommand(String command) {
+  byte *values = getValuesFromString(command);
   
-  getValuesFromString(string, values);
   byte leftMotorSpeed = values[0];
   byte rightMotorSpeed = values[1];
-  byte dir = values[3];
-  byte mode = values[4];
+  byte dir = values[2];
+  byte mode = values[3];
   
   //  If the car is in remote control mode, set the driving direction
-  if (controlMode == REMOTE) {
+  if (getControlMode() == REMOTE) {
     if (dir) {  //  Forward
       digitalWrite(LEFT_MOTOR_IN_1, LOW);
       digitalWrite(LEFT_MOTOR_IN_2, HIGH);
@@ -219,20 +218,25 @@ void Car::handleCommands(String string) {
   //  Send PWM signal
   analogWrite(ENABLE_LEFT_MOTOR, leftMotorSpeed);
   analogWrite(ENABLE_RIGHT_MOTOR, rightMotorSpeed);
+
+  return values;
 }
 
-void Car::getValuesFromString(String string, byte *buff) {
-  int len = string.length();
-  int valueIndex = 0;
-  int beginningIndex = 0;
+byte* Car::getValuesFromString(String string) {
+  static byte buff[4];
+  byte len = string.length();
+  byte valueIndex = 0;
+  byte beginningIndex = 0;
   
-  for (int i  = 0; i < len; i++) {
+  for (byte i  = 0; i < len; i++) {
     if (string[i] == ' ' || string[i] == '\n') {
       String substr = string.substring(beginningIndex, i);
       buff[valueIndex++] = (byte) substr.toInt();
       beginningIndex = i + 1;
     }
   }
+
+  return buff;
 }
 
 void Car::setControlMode(CONTROL_MODE mode) {

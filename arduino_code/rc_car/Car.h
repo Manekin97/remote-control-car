@@ -15,11 +15,11 @@ class Car {
       //  This function tells the car how to drive
       void drive();
 
-      //  This function parses the command string and executes the command
-      void Car::handleCommands(String string);
-
       //  Control mode getter
-      CONTROL_MODE getControlMode();
+      CONTROL_MODE getControlMode();  
+
+      //  This function executes the command
+      void handleCommand(String command);
   private:
       //  Global variable used for storing the control mode
       CONTROL_MODE controlMode = REMOTE;
@@ -36,8 +36,8 @@ class Car {
       //  Control mode setter
       void setControlMode(CONTROL_MODE mode);
 
-      //  This function parses the command string and gets the values from it
-      void getValuesFromString(String string, byte *buff);
+      //  This function parses the command string and returns an array of values
+      byte* getValuesFromString(String string);
 
       //  This function makes the car bypass an obstacle on the left side
       void bypassObstacleOnTheLeftSide();
