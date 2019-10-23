@@ -28,10 +28,10 @@ void loop() {
     //  If the character was a new line character,
     //  handle the command and clear the string
     if (character == '\n') {
+      command.concat(' ');
       car->handleCommand(command);
       command = "";
-    } else {
-      //  Else concatenate it to a string
+    } else {  //  Else concatenate it to a string
       command.concat(character);
     }
   }
