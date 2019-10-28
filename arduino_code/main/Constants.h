@@ -41,9 +41,9 @@ enum CONTROL_MODE {
 #define SERVO_CONTROL 8
 
 //  Servo motor positions
-#define SERVO_LEFT_POSITION 2250
+#define SERVO_LEFT_POSITION   2250
 #define SERVO_MIDDLE_POSITION 1500
-#define SERVO_RIGHT_POSITION 750
+#define SERVO_RIGHT_POSITION  750
 
 //  Defined as centimeters per microsecond to get the distance in centimeters
 #define SPEED_OF_SOUND  0.034

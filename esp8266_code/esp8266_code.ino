@@ -9,10 +9,16 @@ IPAddress IP(192,168,1,1);
 IPAddress GATEWAY(192,168,1,1);
 IPAddress SUBNET(255,255,255,0);
 
+//  UDP connection object
 WiFiUDP Udp;
 
+//  Size of the incoming JSON string
 const size_t jsonSize = JSON_OBJECT_SIZE(4) + 70;
+
+//  Buffer for the incoming packet
 char incomingPacket[jsonSize];
+
+//  JSON document object
 DynamicJsonDocument json(jsonSize);
 
 void setup() {
@@ -49,7 +55,8 @@ void loop() {
     //  If the packet wasn't empty
     if (len > 0) {
       DeserializationError error = deserializeJson(json, incomingPacket);
-  
+
+      //  If the JSON was correctly deserialised
       if (!error) {
         int left_motor_speed = json["left_motor_speed"];
         int right_motor_speed = json["right_motor_speed"];
@@ -57,6 +64,7 @@ void loop() {
         int driving_mode = json["driving_mode"];
         Serial.printf("%d %d %d %d\n", left_motor_speed, right_motor_speed, dir, driving_mode);
       } else {
+        //  Print the error
         Serial.printf("%s\n", error.c_str());
       }
     }
