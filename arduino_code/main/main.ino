@@ -11,12 +11,14 @@ SoftwareSerial ESP_serial(2, 3);  //  Tx, Rx
 Car *car;
 
 void setup() {
-  //  Setup serial connection
+  //  Setup serial connections
   ESP_serial.begin(9600);
   Serial.begin(115200);
 
   //  Create the car
   car = new Car();
+
+  pinMode(SERVO_CONTROL, INPUT_PULLUP);
 }
 
 void loop() {
@@ -25,19 +27,24 @@ void loop() {
     //  Read the character
     char character = ESP_serial.read();
 
-    //  If the character was a new line character,
-    //  handle the command and clear the string
+    /*
+     * If the character was a new line character,
+     * handle the command and clear the string
+     */
     if (character == '\n') {
       command.concat(' ');
       car->handleCommand(command);
       command = "";
-    } else {  //  Else concatenate it to a string
+    } else {  
+      //  Else concatenate it to a string
       command.concat(character);
     }
   }
 
-  //  If the control mode is set to autonomous,
-  //  Tell the car to drive itself
+  /*
+   * If the control mode is set to autonomous,
+   * tell the car to drive itself
+   */
   if (car->getControlMode() == AUTONOMOUS) {
     car->drive();
   }

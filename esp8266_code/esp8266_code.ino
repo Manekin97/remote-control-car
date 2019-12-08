@@ -13,7 +13,7 @@ IPAddress SUBNET(255,255,255,0);
 WiFiUDP Udp;
 
 //  Size of the incoming JSON string
-const size_t jsonSize = JSON_OBJECT_SIZE(4) + 70;
+const size_t jsonSize = JSON_OBJECT_SIZE(5) + 100;
 
 //  Buffer for the incoming packet
 char incomingPacket[jsonSize];
@@ -62,7 +62,9 @@ void loop() {
         int right_motor_speed = json["right_motor_speed"];
         int dir = json["direction"];
         int driving_mode = json["driving_mode"];
-        Serial.printf("%d %d %d %d\n", left_motor_speed, right_motor_speed, dir, driving_mode);
+        int driving_algorithm = json["driving_algorithm"];
+        
+        Serial.printf("%d %d %d %d %d\n", left_motor_speed, right_motor_speed, dir, driving_mode, driving_algorithm);
       } else {
         //  Print the error
         Serial.printf("%s\n", error.c_str());
