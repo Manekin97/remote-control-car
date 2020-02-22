@@ -5,7 +5,7 @@
 String command;
 
 //  Software serial communication used for communication with ESP8266 board
-SoftwareSerial ESP_serial(2, 3);  //  Tx, Rx
+SoftwareSerial ESP_serial(SOFTWARE_SERIAL_TX, SOFTWARE_SERIAL_RX);
 
 //  The car object
 Car *car;

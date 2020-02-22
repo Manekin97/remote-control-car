@@ -1,7 +1,7 @@
 #include "car.h"
 
 Car::Car() :  algorithm(0),
-              controlMode(REMOTE) {
+  controlMode(REMOTE) {
   //  Set motors pin modes
   pinMode(ENABLE_LEFT_MOTOR,  OUTPUT);
   pinMode(ENABLE_RIGHT_MOTOR, OUTPUT);
@@ -27,16 +27,22 @@ void Car::simpleAlgorithm() const {
   move(FORWARD, 255);
 
   //  Get the distance to the obstacle in front
-  int distance = sensor->convert_cm(
-    sensor->ping_median(SENSOR_READ_ITERATIONS, SENSOR_MAX_DISTANCE)
-  );
+  int distance = checkForObstacles(FRONT_SIDE);
 
   //  If there's an obstacle in front of the vehicle
   if (distance > 0 && distance < OBSTACLE_DISTANCE_THRESHOLD) {
-    //  Back up
     move(STOP, 0);
-    move(BACKWARD, 255);
-    delay(500);
+    delay(100);
+
+    //  Get the distance to the obstacle in front
+    distance = checkForObstacles(FRONT_SIDE);
+
+    //  Check if there is enough space to make a turn
+    if (distance <= OBSTACLE_DISTANCE_THRESHOLD * 1.2) {
+      //  Back up if not
+      move(BACKWARD, 255);
+      delay(500);
+    }
 
     //  Generate a random number in range of <0, 9>
     byte rnd = random(10);
@@ -53,9 +59,8 @@ void Car::simpleAlgorithm() const {
 }
 
 int Car::escapeFromCorridor() const {
-  Serial.println("escapeFromCorridor");
   int leftDistance = 0, rightDistance = 0;
-  
+
   while (leftDistance <= OBSTACLE_DISTANCE_THRESHOLD && rightDistance <= OBSTACLE_DISTANCE_THRESHOLD) {
     move(BACKWARD, 255);
     delay(250);
@@ -70,25 +75,26 @@ int Car::escapeFromCorridor() const {
 
   if (leftDistance > OBSTACLE_DISTANCE_THRESHOLD) {
     return LEFT_SIDE;
-  } 
-  
+  }
+
   if (rightDistance > OBSTACLE_DISTANCE_THRESHOLD) {
     return RIGHT_SIDE;
   }
 }
-    
+
 void Car::advancedAlgorithm() const {
   //  Drive forward
   move(FORWARD, 255);
   servo.write(SERVO_MIDDLE_POSITION);
-  
+
   //  Get the distance to the obstacle in front
   int distance = checkForObstacles(FRONT_SIDE);
 
   //  If there's an obstacle in front of the vehicle
   if (distance > 0 && distance < OBSTACLE_DISTANCE_THRESHOLD) {
     move(STOP, 0);
-    
+    delay(100);
+
     //  Check the distance to an obstacle on the left
     int leftDistance = checkForObstacles(LEFT_SIDE);
     //  Check the distance to an obstacle on the right
@@ -96,9 +102,9 @@ void Car::advancedAlgorithm() const {
 
     //  Get the distance to the obstacle in front
     distance = checkForObstacles(FRONT_SIDE);
-    
+
     //  Check if there is enough space to make a turn
-    if (distance <= OBSTACLE_DISTANCE_THRESHOLD * 1.5) {
+    if (distance <= OBSTACLE_DISTANCE_THRESHOLD * 1.2) {
       //  Back up if not
       move(BACKWARD, 255);
       delay(500);
@@ -118,7 +124,7 @@ void Car::advancedAlgorithm() const {
     } else {
       //  Generate a random number in range of <0, 9>
       byte rnd = random(10);
-      
+
       //  Choose direction based on the random number
       if (rnd < 5) {
         move(LEFT, 255);
@@ -132,7 +138,140 @@ void Car::advancedAlgorithm() const {
 }
 
 void Car::complexAlgorithm() const {
-  Serial.println("complexAlgorithm");
+  //  Drive forward
+  move(FORWARD, 200);
+  servo.write(SERVO_MIDDLE_POSITION);
+
+  //  Get the distance to the obstacle in front
+  int distance = checkForObstacles(FRONT_SIDE);
+
+  if (distance > 0 && distance < OBSTACLE_DISTANCE_THRESHOLD) {
+    move(STOP, 0);
+    delay(100);
+
+    //  Get the distance to an obstacle on the left
+    int leftDistance = checkForObstacles(LEFT_SIDE);
+    //  Get the distance to an obstacle on the right
+    int rightDistance = checkForObstacles(RIGHT_SIDE);
+
+    if (leftDistance == 0 && rightDistance == 0) {
+      //  If there are no obstacles on either of the vehicle sides
+      
+      //  Generate a random number in range of <0, 9>
+      byte rnd = random(10);
+
+      //  Choose direction based on the random number
+      if (rnd < 5) {
+        bypassObstacleOnTheLeftSide();
+      } else {
+        bypassObstacleOnTheRightSide();
+      }
+      
+    } else if((leftDistance > 0 && leftDistance < OBSTACLE_DISTANCE_THRESHOLD) && (rightDistance == 0 || rightDistance >= OBSTACLE_DISTANCE_THRESHOLD)) {
+      //  If there are no obstacles on the right side and the obstacle on the left side is in range of (0, OBSTACLE_DISTANCE_THRESHOLD) cm
+
+      bypassObstacleOnTheRightSide();
+    } else if ((rightDistance > 0 && rightDistance < OBSTACLE_DISTANCE_THRESHOLD) && (leftDistance == 0 || leftDistance >= OBSTACLE_DISTANCE_THRESHOLD)) {
+      //  If there are no obstacles on the left side and the obstacle on the right side is in range of (0, OBSTACLE_DISTANCE_THRESHOLD) cm
+
+      bypassObstacleOnTheLeftSide();
+    } else if ((leftDistance >= rightDistance) && (rightDistance > 0)) {
+      bypassObstacleOnTheLeftSide();
+    } else if ((rightDistance > leftDistance) && (leftDistance > 0)) {
+      bypassObstacleOnTheRightSide();
+    } else if (leftDistance == 0) {
+      bypassObstacleOnTheLeftSide();
+    } else if (rightDistance == 0) {
+      bypassObstacleOnTheRightSide();
+    }
+//    } else if ((leftDistance > rightDistance) && (rightDistance >= OBSTACLE_DISTANCE_THRESHOLD)) {
+//      bypassObstacleOnTheLeftSide();
+//    } else if ((rightDistance > leftDistance) && (leftDistance >= OBSTACLE_DISTANCE_THRESHOLD)) {
+//      bypassObstacleOnTheRightSide();
+//    }
+  }
+}
+
+void Car::bypassObstacleOnTheLeftSide() const {
+  //  Make a left turn
+  move(STOP, 0);
+  delay(100);
+  move(LEFT, 255);
+  delay(350);
+
+  int frontDistance, rightDistance;
+
+  while (true) {
+    move(FORWARD, 200);
+    
+    //  Check the distance to an obstacle on the left
+    rightDistance = checkForObstacles(RIGHT_SIDE);
+    //  Check the distance to an obstacle in front of the vehicle
+    frontDistance = checkForObstacles(FRONT_SIDE);
+
+    //  If the vehicle reached the end of the obstacle
+    if (rightDistance == 0 || rightDistance > OBSTACLE_DISTANCE_THRESHOLD) {
+      move(STOP, 0);
+      delay(500);
+      move(RIGHT, 255);
+      delay(500);
+      
+      return;
+    }
+
+    //  If there's an obstacle in front of the vehicle
+    if (frontDistance > 0 && frontDistance <= OBSTACLE_DISTANCE_THRESHOLD) {
+      move(STOP, 0);
+      delay(500);
+      move(LEFT, 255);
+      delay(500);
+      
+      return;
+    }
+
+    delay(300);
+  }
+}
+
+void Car::bypassObstacleOnTheRightSide() const {
+  //  Make a right turn
+  move(STOP, 0);
+  delay(500);
+  move(RIGHT, 255);
+  delay(350);
+
+  int frontDistance, leftDistance;
+
+  while (true) {
+    move(FORWARD, 200);
+    
+    //  Check the distance to an obstacle on the left
+    leftDistance = checkForObstacles(LEFT_SIDE);
+    //  Check the distance to an obstacle in front of the vehicle
+    frontDistance = checkForObstacles(FRONT_SIDE);
+
+    //  If the vehicle reached the end of the obstacle
+    if (leftDistance == 0 || leftDistance > OBSTACLE_DISTANCE_THRESHOLD) {
+      move(STOP, 0);
+      delay(500);
+      move(LEFT, 255);
+      delay(500);
+      
+      return;
+    }
+
+    //  If there's an obstacle in front of the vehicle
+    if (frontDistance > 0 && frontDistance <= OBSTACLE_DISTANCE_THRESHOLD) {
+      move(STOP, 0);
+      delay(500);
+      move(RIGHT, 255);
+      delay(500);
+      
+      return;
+    }
+
+    delay(300);
+  }
 }
 
 void Car::move(const CAR_ACTION action, const byte speed) const {
@@ -183,316 +322,6 @@ void Car::move(const CAR_ACTION action, const byte speed) const {
   }
 }
 
-void Car::bypassObstacleOnTheLeftSide() const {
-  //  Back off the car and make a left turn
-  move(BACKWARD, 255);
-  delay(350);
-  move(STOP, 0);
-  delay(100);
-  move(LEFT, 255);
-  delay(350);
-
-  int start = millis();
-  int current = start;
-  while (current - start <= 10000) {
-    current = millis();
-
-    // Drive forward
-    move(FORWARD, 255);
-    delay(500);
-
-    //  Check if the car reached the end of the obstacle
-    servo.write(SERVO_RIGHT_POSITION);
-    delay(100);
-    int right = sensor->convert_cm(
-      sensor->ping_median(SENSOR_READ_ITERATIONS, SENSOR_MAX_DISTANCE)
-    );
-
-    if (right > 0 && right <= OBSTACLE_DISTANCE_THRESHOLD) {
-      //  If the car hasn't reached the end of the obstacle,
-      //  check if there's an obstacle in front of the car
-      servo.write(SERVO_MIDDLE_POSITION);
-      delay(100);
-      int front = sensor->convert_cm(
-        sensor->ping_median(SENSOR_READ_ITERATIONS, SENSOR_MAX_DISTANCE)
-      );
-
-      if (front > 0 && front <= OBSTACLE_DISTANCE_THRESHOLD) {
-        //  If there was, back off and make a left turn
-          move(BACKWARD, 255);
-          delay(500);
-          move(LEFT, 255);
-          delay(300);
-        
-      } else {
-        //  Else, keep driving forward
-        move(FORWARD, 255);
-        delay(500);
-      }
-    } else {
-      /*
-       *  If the car reached the end of the obstacle,
-       *  check if there's an obstacle in front of the car
-       */
-     
-      servo.write(SERVO_MIDDLE_POSITION);
-      delay(100);
-      int front = sensor->convert_cm(
-        sensor->ping_median(SENSOR_READ_ITERATIONS, SENSOR_MAX_DISTANCE)
-      );
-
-      if (front > 0 && front <= OBSTACLE_DISTANCE_THRESHOLD) {
-        //  If there was, make a right turn
-        move(RIGHT, 255);
-        delay(300);
-      } else {
-        //  If there wasn't, drive forward a little and make a right turn
-        move(FORWARD, 255);
-        delay(500);
-        move(RIGHT, 255);
-        delay(100);
-      }
-
-      return; //zmien w right tez
-    }
-  }
-}
-
-//void Car::bypassObstacleOnTheLeftSide() {
-//  //  Back off the car and make a left turn
-//  move(BACKWARD, 255);
-//  delay(350);
-//  move(STOP, 0);
-//  delay(100);
-//  move(LEFT, 255);
-//  delay(350);
-//
-//  int start = millis();
-//  int current = start;
-//  while (current - start <= 10000) {
-//    current = millis();
-//
-//    // Drive forward
-//    move(FORWARD, 255);
-//    delay(500);
-//
-//    //  Check if the car reached the end of the obstacle
-//    //  Multiple if statements to prevent false readings from the sensor
-//    servo.write(SERVO_RIGHT_POSITION);
-//    delay(100);
-//    int right = sensor->readSensor();
-//
-//    if (right <= OBSTACLE_DISTANCE_THRESHOLD) {
-//      delay(10);
-//      right = sensor->readSensor();
-//
-//      if (right <= OBSTACLE_DISTANCE_THRESHOLD) {
-//        //  If the car hasn't reached the end of the obstacle,
-//        //  check if there's an obstacle in front of the car
-//        servo.write(SERVO_MIDDLE_POSITION);
-//        delay(100);
-//        int front = sensor->readSensor();
-//
-//        if (front <= OBSTACLE_DISTANCE_THRESHOLD) {
-//          delay(10);
-//          front = sensor->readSensor();
-//
-//          //  If there was, back off and make a left turn
-//          if (front <= OBSTACLE_DISTANCE_THRESHOLD) {
-//            move(BACKWARD, 255);
-//            delay(500);
-//            move(LEFT, 255);
-//            delay(300);
-//          }
-//        } else {
-//          //  Else, keep driving forward
-//          move(FORWARD, 255);
-//          delay(500);
-//        }
-//      }
-//    } else {
-//      //  If the car reached the end of the obstacle,
-//      //  check if there's an obstacle in front of the car
-//      servo.write(SERVO_MIDDLE_POSITION);
-//      delay(100);
-//      int front = sensor->readSensor();
-//
-//      if (front <= OBSTACLE_DISTANCE_THRESHOLD) {
-//        delay(10);
-//        front = sensor->readSensor();
-//
-//        if (front <= OBSTACLE_DISTANCE_THRESHOLD) {
-//          //  If there was, make a right turn
-//          move(RIGHT, 255);
-//          delay(300);
-//        }
-//      } else {
-//        //  If there wasn't, drive forward a little and make a right turn
-//        move(FORWARD, 255);
-//        delay(500);
-//        move(RIGHT, 255);
-//        delay(100);
-//
-//        return;
-//      }
-//    }
-//  }
-//}
-
-void Car::bypassObstacleOnTheRightSide() const {
-  //  Back off the car and make a right turn
-  move(BACKWARD, 255);
-  delay(350);
-  move(STOP, 0);
-  delay(100);
-  move(RIGHT, 255);
-  delay(350);
-
-  int start = millis();
-  int current = start;
-  while (current - start <= 10000) {
-    current = millis();
-
-    // Drive forward
-    move(FORWARD, 255);
-    delay(500);
-
-    //  Check if the car reached the end of the obstacle
-    servo.write(SERVO_LEFT_POSITION);
-    delay(100);
-    int left = sensor->convert_cm(
-      sensor->ping_median(SENSOR_READ_ITERATIONS, SENSOR_MAX_DISTANCE)
-    );
-
-    if (left > 0 && left <= OBSTACLE_DISTANCE_THRESHOLD) {
-      //  If the car hasn't reached the end of the obstacle,
-      //  check if there's an obstacle in front of the car
-      servo.write(SERVO_MIDDLE_POSITION);
-      delay(100);
-      int front = sensor->convert_cm(
-        sensor->ping_median(SENSOR_READ_ITERATIONS, SENSOR_MAX_DISTANCE)
-      );
-
-      if (front > 0 && front <= OBSTACLE_DISTANCE_THRESHOLD) {
-          move(BACKWARD, 255);
-          delay(500);
-          move(RIGHT, 255);
-          delay(300);
-      } else {
-        //  Else, keep driving forward
-        move(FORWARD, 255);
-        delay(500);
-      }
-    }  else {
-      /*
-       *  If the car reached the end of the obstacle,
-       *  check if there's an obstacle in front of the car
-       */
-
-      servo.write(SERVO_MIDDLE_POSITION);
-      delay(100);
-      int front = sensor->convert_cm(
-        sensor->ping_median(SENSOR_READ_ITERATIONS, SENSOR_MAX_DISTANCE)
-      );
-  
-      if (front > 0 && front <= OBSTACLE_DISTANCE_THRESHOLD) {
-        //  If there was, make a left turn
-        move(LEFT, 255);
-        delay(300);
-      } else {
-        //  If there wasn't, drive forward a little and make a left turn
-        move(FORWARD, 255);
-        delay(500);
-        move(LEFT, 255);
-        delay(100);
-  
-        return;
-      }
-    }
-  }
-}
-
-//void Car::bypassObstacleOnTheRightSide() {
-//  //  Back off the car and make a right turn
-//  move(BACKWARD, 255);
-//  delay(350);
-//  move(STOP, 0);
-//  delay(100);
-//  move(RIGHT, 255);
-//  delay(350);
-//
-//  int start = millis();
-//  int current = start;
-//  while (current - start <= 10000) {
-//    current = millis();
-//
-//    // Drive forward
-//    move(FORWARD, 255);
-//    delay(500);
-//
-//    //  Check if the car reached the end of the obstacle
-//    //  Multiple if statements to prevent false readings from the sensor
-//    servo.write(SERVO_LEFT_POSITION);
-//    delay(100);
-//    int left = sensor->readSensor();
-//
-//    if (left <= OBSTACLE_DISTANCE_THRESHOLD) {
-//      delay(10);
-//      left = sensor->readSensor();
-//
-//      if (left <= OBSTACLE_DISTANCE_THRESHOLD) {
-//        //  If the car hasn't reached the end of the obstacle,
-//        //  check if there's an obstacle in front of the car
-//        servo.write(SERVO_MIDDLE_POSITION);
-//        delay(100);
-//        int front = sensor->readSensor();
-//
-//        if (front <= OBSTACLE_DISTANCE_THRESHOLD) {
-//          delay(10);
-//          front = sensor->readSensor();
-//
-//          //  If there was, back off and make a right turn
-//          if (front <= OBSTACLE_DISTANCE_THRESHOLD) {
-//            move(BACKWARD, 255);
-//            delay(500);
-//            move(RIGHT, 255);
-//            delay(300);
-//          }
-//        } else {
-//          //  Else, keep driving forward
-//          move(FORWARD, 255);
-//          delay(500);
-//        }
-//      }
-//    } else {
-//      //  If the car reached the end of the obstacle,
-//      //  check if there's an obstacle in front of the car
-//      servo.write(SERVO_MIDDLE_POSITION);
-//      delay(100);
-//      int front = sensor->readSensor();
-//
-//      if (front <= OBSTACLE_DISTANCE_THRESHOLD) {
-//        delay(10);
-//        front = sensor->readSensor();
-//
-//        if (front <= OBSTACLE_DISTANCE_THRESHOLD) {
-//          //  If there was, make a left turn
-//          move(LEFT, 255);
-//          delay(300);
-//        }
-//      } else {
-//        //  If there wasn't, drive forward a little and make a left turn
-//        move(FORWARD, 255);
-//        delay(500);
-//        move(LEFT, 255);
-//        delay(100);
-//
-//        return;
-//      }
-//    }
-//  }
-//}
-
 unsigned int Car::checkForObstacles(const DIRECTION direction) const {
   //  Position servo at the correct position
   switch (direction) {
@@ -507,13 +336,13 @@ unsigned int Car::checkForObstacles(const DIRECTION direction) const {
       break;
   }
 
-  //  Wait 100ms so that the servo has time to rotate
-  delay(100);
+  //  Wait 300ms so that the servo has time to rotate itself
+  delay(300);
 
   //  Read the sensor
   unsigned int distance = sensor->convert_cm(
-    sensor->ping_median(SENSOR_READ_ITERATIONS, SENSOR_MAX_DISTANCE)
-  );
+                            sensor->ping_median(SENSOR_READ_ITERATIONS, SENSOR_MAX_DISTANCE)
+                          );
 
   //  Return the distance
   return distance;
@@ -532,13 +361,13 @@ void Car::handleCommand(const String command) {
 
   //  If the car is in remote control mode, set the driving direction
   if (getControlMode() == REMOTE) {
-    if (dir) {  
+    if (dir) {
       //  Forward
       digitalWrite(LEFT_MOTOR_IN_1, LOW);
       digitalWrite(LEFT_MOTOR_IN_2, HIGH);
       digitalWrite(RIGHT_MOTOR_IN_3, LOW);
       digitalWrite(RIGHT_MOTOR_IN_4, HIGH);
-    } else {  
+    } else {
       //  Backward
       digitalWrite(LEFT_MOTOR_IN_1, HIGH);
       digitalWrite(LEFT_MOTOR_IN_2, LOW);
@@ -554,10 +383,11 @@ void Car::handleCommand(const String command) {
     setControlMode(REMOTE);
   }
 
-  //  Set the AI algorithm  
+  //  Set the AI algorithm
   setAlgorithm(algorithm);
 
   //  Send PWM signal
+  // TODO: czy nie powinno być w ifie czy jest w trybie REMOTE?
   analogWrite(ENABLE_LEFT_MOTOR, leftMotorSpeed);
   analogWrite(ENABLE_RIGHT_MOTOR, rightMotorSpeed);
 }
@@ -565,7 +395,7 @@ void Car::handleCommand(const String command) {
 byte* Car::getValuesFromString(const String string) const {
   //  Create a static buffer
   static byte buff[5];
-  
+
   //  Get the length of the string
   byte len = string.length();
   byte valueIndex = 0;
@@ -595,13 +425,13 @@ void Car::setControlMode(const CONTROL_MODE mode) {
    *  To prevent that set the pin mode to INPUT_PULLUP
    *  when the car is in remote control mode.
    */
-   
+
   if (mode == REMOTE) {
     pinMode(SERVO_CONTROL, INPUT_PULLUP);
   } else {
     pinMode(SERVO_CONTROL, OUTPUT);
   }
-  
+
   controlMode = mode;
 }
 
@@ -610,7 +440,7 @@ CONTROL_MODE Car::getControlMode() const {
 }
 
 void Car::drive() {
-  switch(algorithm) {
+  switch (algorithm) {
     case SIMPLE:
       simpleAlgorithm();
       break;
@@ -623,105 +453,4 @@ void Car::drive() {
     default:
       break;
   }
-//  //  Drive forward
-//  servo.write(SERVO_MIDDLE_POSITION);
-//  move(FORWARD, 175);
-//
-//  int distance = sensor->convert_cm(
-//    sensor->ping_median(SENSOR_READ_ITERATIONS, SENSOR_MAX_DISTANCE)
-//  );
-//
-//
-//  if (distance > 0 && distance <= OBSTACLE_DISTANCE_THRESHOLD) {
-//    move(STOP, 0);
-//    delay(100);
-//    Serial.println("przeszkoda - front");
-//
-//    //  Check the left side
-//    int left = checkForObstacles(LEFT_SIDE);
-//
-//    //  Check the right side
-//    int right = checkForObstacles(RIGHT_SIDE);
-//
-//    servo.write(SERVO_MIDDLE_POSITION);
-//    Serial.print("left=");
-//    Serial.println(left);
-//    Serial.print("right=");
-//    Serial.println(right);
-//
-//    //  If there are no obstacles on both sides
-//    if (left == 0 && right == 0) {
-//      Serial.println("left == 0 && right == 0");
-////      //  Choose a random side
-////      byte rnd = random(10);
-////
-////      if (rnd < 5) {
-////        bypassObstacleOnTheLeftSide();
-////      } else {
-////        bypassObstacleOnTheRightSide();
-////      }
-//    } else if ((left > 0 && left <= OBSTACLE_DISTANCE_THRESHOLD) && (right > 0 && right <= OBSTACLE_DISTANCE_THRESHOLD)) {
-//      Serial.println("(left > 0 && left <= OBSTACLE_DISTANCE_THRESHOLD) && (right > 0 && right <= OBSTACLE_DISTANCE_THRESHOLD");
-//      //  If there are obstacles on both sides, back off the car
-////      move(BACKWARD, 255);
-////      delay(500);
-//    } else if ((left >= right && right > 0) || left == 0) {
-//      //  If the obstacle on the right side is closer than on the left side
-//      bypassObstacleOnTheLeftSide();
-//    } else {
-//      Serial.println("else");
-//      //  Else, if the obstacle on the left is closer than on the right side
-////      bypassObstacleOnTheRightSide();
-//    }
-//  }
 }
-
-//void Car::drive() {
-//  //  Drive forward
-//  servo.write(SERVO_MIDDLE_POSITION);
-//  move(FORWARD, 175);
-//
-//  int distance = sensor->readSensor();
-//
-//  //  Multiple if statements to prevent false readings from the sensor
-//  if (distance <= OBSTACLE_DISTANCE_THRESHOLD) {
-//    delay(10); // błaadd
-//    if (distance <= OBSTACLE_DISTANCE_THRESHOLD) {
-//      move(STOP, 0);
-//
-//      //  Check the left side (Twice to avoid false readings)
-//      int left = checkForObstacles(LEFT_SIDE);
-//      delay(10);
-//      left = checkForObstacles(LEFT_SIDE);
-//
-//      //  Check the right side (Twice to avoid false readings)
-//      int right = checkForObstacles(RIGHT_SIDE);
-//      delay(10);
-//      right = checkForObstacles(RIGHT_SIDE);
-//
-//      servo.write(SERVO_MIDDLE_POSITION);
-//
-//      //  If there are no obstacles on both sides
-//      if (left > 50 && right > 50) {
-//        //  Choose a random side
-//        byte rnd = random(10);
-//
-//        if (rnd < 5) {
-//          bypassObstacleOnTheLeftSide();
-//        } else {
-//          bypassObstacleOnTheRightSide();
-//        }
-//      }  else if (left <= OBSTACLE_DISTANCE_THRESHOLD && right <= OBSTACLE_DISTANCE_THRESHOLD ) {
-//        //  If there are obstacles on both sides, back off the car
-//        move(BACKWARD, 255);
-//        delay(500);
-//      } else if (left >= right) {
-//        //  If the obstacle on the right side is closer than on the left side
-//        bypassObstacleOnTheLeftSide();
-//      } else {
-//        //  Else, if the obstacle on the left is closer than on the right side
-//        bypassObstacleOnTheRightSide();
-//      }
-//    }
-//  }
-//}
